@@ -3,6 +3,8 @@ from app.model.mahasiswa import Mahasiswa
 from app import app, db  # Jangan impor 'response' di sini
 from flask import request
 from sqlalchemy import or_  # Diperlukan untuk OR filter
+from flask import jsonify
+import math
 
 
 def index():
@@ -146,3 +148,67 @@ def hapus(id):
     except Exception as e:
         print(e)
         return response.badRequest([], str(e))
+    
+
+    
+def get_pagination(clss, url, start, limit):
+    #ambil data select
+    results = clss.query.all()
+    #ubah format
+    data = formatarray(results)
+    #hitung jumlah data
+    count = len(data)
+
+    obj = {}
+    if count < start:
+        obj['success'] = False
+        obj['message'] = "Page yang dipilih melewati batas total data!"
+        return obj
+    else:
+        obj['success'] = True
+        obj['start_page'] = start
+        obj['per_page'] = limit
+        obj['total_data'] = count
+
+        #previous link
+        if start == 1:
+            obj['previous'] = ''
+        else:
+            start_copy = max(1, start - limit)
+            limit_copy = start - 1
+            obj['previous'] = url + '?start=%d&limit=%d' % (start_copy, limit_copy)
+
+        #next link
+        if start + limit > count:
+            obj['next'] = ''
+        else:
+            start_copy = start + limit
+            obj['next'] = url + '?start=%d&limit=%d' % (start_copy, limit)
+
+        obj['results'] = data[(start - 1):(start - 1 + limit)]
+        return obj 
+
+def paginate():
+    #ambil parameter get 
+    #sample www.google.com?product=baju
+
+    start = request.args.get('start')
+    limit = request.args.get('limit')
+
+    try:
+        if start is None or limit is None:
+            return jsonify(get_pagination(
+                Dosen,
+                'http://127.0.0.1:5000/api/dosen/page',
+                start=1,
+                limit=3
+            ))
+        else:
+            return jsonify(get_pagination(
+                Dosen,
+                'http://127.0.0.1:5000/api/dosen/page',
+                start=int(start),
+                limit=int(limit)
+            ))
+    except Exception as e:
+        print(e)
